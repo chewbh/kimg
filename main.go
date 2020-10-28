@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strings"
 )
@@ -29,13 +30,49 @@ func main() {
 		}
 	} else {
 		fmt.Println("no pipe :(")
+		os.Exit(1)
 	}
 
 	for _, l := range extractImagesFromManifest(manifest) {
 		fmt.Printf("%s\n", l)
 	}
 
+	// image/tag:v1.0.0
+	// 123.123.123.123:123/image/tag:v1.0.0
+	// your-domain.com/image/tag
+	// your-domain.com/image/tag:v1.1.1-patch1
+	// image/tag
+	// image
+	// image:v1.1.1-patch
+	// ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
+	// etc...
+
+	tests := []string{
+		"image/tag:v1.0.0",
+		"123.123.123.123/image/tag:v1.0.0",
+		"your-domain.com/image/tag",
+		"your-domain.com/image/tag:v1.1.1-patch1",
+		"image/tag",
+		"image",
+		"image:v1.1.1-patch",
+		"ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2",
+	}
+
+	for _, t := range tests {
+		fmt.Printf("\n%s => %s", t, changeContainerRegistry(t, "some.domain.com"))
+	}
+
 	os.Exit(0)
+}
+
+func changeContainerRegistry(imageTag string, newContainerRegistry string) string {
+	if strings.Contains(imageTag, "/") {
+		potentialRegistry := before(imageTag, "/")
+		if net.ParseIP(potentialRegistry) != nil {
+			return fmt.Sprintf("%s/%s", newContainerRegistry, after(imageTag, "/"))
+		}
+	}
+	return fmt.Sprintf("%s/%s", newContainerRegistry, imageTag)
 }
 
 func extractImagesFromManifest(manifest []string) []string {
@@ -67,6 +104,15 @@ func mapTo(vs []string, f func(string) string) []string {
 		vsm[i] = f(v)
 	}
 	return vsm
+}
+
+func before(value string, a string) string {
+	// Get substring before a string.
+	pos := strings.Index(value, a)
+	if pos == -1 {
+		return ""
+	}
+	return value[0:pos]
 }
 
 func after(value string, a string) string {
