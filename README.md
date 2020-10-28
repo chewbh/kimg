@@ -1,5 +1,4 @@
 # kimg
-# kimg
 
 Simple program to extract OCI or docker images from a well-formed kubernetes manifest file
 
